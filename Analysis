@@ -1,0 +1,144 @@
+
+
+#running the regression
+
+
+# packages ----------------------------------------------------------------
+
+
+#a bunch of packages- used for cleaning etc.
+library(tidyverse) #datawrangling
+library(semTools) #determine fraction of missing info
+library(mice) #multiple imputation
+library(haven)
+library(dplyr)
+library(tidyverse) #datawrangling
+library(semTools) #determine fraction of missing info
+library(mice) #multiple imputation
+library(haven)
+library(rio)
+library(psych)
+
+
+
+# import data -------------------------------------------------------------
+
+
+
+#set working directory
+setwd("/Users/bellamaeswafford/Desktop")
+
+
+#import combined data
+total <- import('total.RData') %>%
+  mutate(sport = case_when(sport == 2 ~ 'no',
+                           sport == 1 ~ 'yes')) %>%
+ mutate(ace_cat = case_when(ace_total == 18 ~ 'high',
+                           ace_total == 17 ~ 'high',
+                           ace_total == 16 ~ 'high',
+                           ace_total == 15 ~ 'high',
+                           ace_total == 14 ~ 'high',
+                           ace_total == 13 ~ 'high',
+                           ace_total == 12 ~ 'high',
+                           ace_total == 11 ~ 'low',
+                           ace_total == 10 ~ 'low',
+                           ace_total == 9 ~ 'low'))
+
+
+glimpse(total)
+
+
+# fix anx and depr into factors -------------------------------------------
+
+
+
+#fix anxiety
+total$anx_cur <- as.factor(total$anx_cur)
+#fix depression
+total$depr_cur <- as.factor(total$depr_cur)
+#fix sport
+total$sport <- as.factor(total$sport)
+#fix ace_bin
+total$ace_cat <- as.factor(total$ace_cat)
+
+summary(total)
+
+
+
+
+
+# weights -----------------------------------------------------------------
+
+# Survey Design -----------------------------------------------------------
+library(survey)
+des <- svydesign(id=~hhid, strata=~fipsst + stratum, weights=~fwc, data=total, nest=TRUE)
+
+
+
+index_ave <- svyglm(anx_cur ~ ace_cat * sport * sex,
+                    design = des,
+                    family = binomial())
+
+
+
+
+
+
+
+# logistic regression model -----------------------------------------------
+
+
+
+# Fit logistic regression model with three-way interaction
+#anxiety model
+anx_model <- glm(anx_cur ~ ace_cat * sport * sex + age + race, data = total, family = binomial)
+summary(anx_model)
+
+#depression model
+depr_model <- glm(depr_cur ~ ace_cat * sport * sex + age + race, data = total, family = binomial)
+summary(depr_model)
+
+
+
+
+# interpreting results ----------------------------------------------------
+
+#anxiety
+
+total$anx_cur <- as.numeric(total$anx_cur)
+
+
+#find main effects, two way, and three way
+modmat <- model.matrix(anx_cur ~ ace_cat * sport * sex, total)
+modmat
+summary(modmat)
+
+#fitting a linear model
+m_anx <- lm(anx_cur ~ ace_cat * sport * sex, total)
+m_anx
+summary(m_anx)
+
+
+
+
+
+#depression
+
+total$depr_cur <- as.numeric(total$depr_cur)
+
+#find main effects, two way, and three way
+modmat <- model.matrix(depr_cur ~ ace_cat * sport * sex, total)
+modmat
+summary(modmat)
+
+
+#fitting a linear model
+m_depr <- lm(depr_cur ~ ace_cat * sport * sex, total)
+m_depr
+summary(m_depr)
+
+
+
+
+
+
