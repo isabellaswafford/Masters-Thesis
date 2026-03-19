@@ -1,0 +1,622 @@
+
+library(tidyverse) #datawrangling
+library(semTools) #determine fraction of missing info
+library(mice) #multiple imputation
+library(haven)
+library(rio)
+library(psych)
+
+d <- import('nsch2019.sav')
+d2 <- import('nsch2018.sav')
+d3 <- import('nsch2017.sav')
+d4 <- import('nsch2016.sav')
+
+glimpse(d2)
+
+
+# variable selection ------------------------------------------------------
+
+
+#2019
+d2019 <- d %>%
+  select(ace1, ace3, ace4, ace5, ace6, ace7, ace8, ace9, ace10, #aces
+         k7q30, k2q33a, k2q33b, k2q32a, k2q32b, sc_sex, #sport participation, anxiety, depression, sex
+         sc_age_years, sc_race_r, physactiv) #covariates- probably need more
+
+glimpse(d2019)
+
+colnames(d2019) <- c("ace1", "ace3", "ace4", "ace5", "ace6", "ace7", "ace8", "ace9", "ace10",
+                     "sport", "anx", "anx_cur", "depr", "depr_cur", "sex", "age", "race", "pa" )
+
+
+
+
+#2018
+
+d2018 <- d2 %>%
+  select(ACE1, ACE3, ACE4, ACE5, ACE6, ACE7, ACE8, ACE9, ACE10, #aces
+         K7Q30, K2Q33A, K2Q33B, K2Q32A, K2Q32B, SC_SEX, #sport participation, anxiety, depression, sex
+         SC_AGE_YEARS, SC_RACE_R, PHYSACTIV) #covariates- probably need more
+
+
+colnames(d2018) <- c("ace1", "ace3", "ace4", "ace5", "ace6", "ace7", "ace8", "ace9", "ace10",
+                       "sport", "anx", "anx_cur", "depr", "depr_cur", "sex", "age", "race", "pa" )
+
+glimpse(d2018)
+
+
+
+#2017
+
+d2017 <- d3 %>%
+  select(ACE1, ACE3, ACE4, ACE5, ACE6, ACE7, ACE8, ACE9, ACE10, #aces
+         K7Q30, K2Q33A, K2Q33B, K2Q32A, K2Q32B, SC_SEX, #sport participation, anxiety, depression, sex
+         SC_AGE_YEARS, SC_RACE_R, PHYSACTIV) #covariates- probably need more
+
+
+
+
+
+colnames(d2017) <- c("ace1", "ace3", "ace4", "ace5", "ace6", "ace7", "ace8", "ace9", "ace10",
+                       "sport", "anx", "anx_cur", "depr", "depr_cur", "sex", "age", "race", "pa" )
+
+glimpse(d2017)
+
+
+
+
+#2016
+
+d2016 <- d4 %>%
+  select(ACE1, ACE3, ACE4, ACE5, ACE6, ACE7, ACE8, ACE9, ACE10, #aces
+         K7Q30, K2Q33A, K2Q33B, K2Q32A, K2Q32B, SC_SEX, #sport participation, anxiety, depression, sex
+         SC_AGE_YEARS, SC_RACE_R, PHYSACTIV) #covariates- probably need more
+
+
+
+colnames(d2016) <- c("ace1", "ace3", "ace4", "ace5", "ace6", "ace7", "ace8", "ace9", "ace10",
+                       "sport", "anx", "anx_cur", "depr", "depr_cur", "sex", "age", "race", "pa" )
+
+
+
+glimpse(d2016)
+
+# check that variables are the same across all 4 dataframes
+
+names(d2016) == names(d2017)
+names(d2017) == names(d2018)
+names(d2018) == names(d2019)
+
+glimpse(d2019)
+
+
+
+
+# anxiety cleaning --------------------------------------------------------
+
+
+
+#check first anxiety question for any NAs
+
+# if anx = NA, make then anx_cur = NA
+# if anx = 1 and anx_cur = 1, then make anx_cur = "yes"
+# if anx = 1 and anx_cur = 2, then make anx_cur = "no"
+# if anx = 2, then make anx_cur = "no"
+
+
+#2019
+
+sum(is.na(d2019$anx)) #86
+sum(is.na(d2019$anx_cur)) #26084
+
+sum(is.na(d2019$anx) & is.na(d2019$anx_cur))
+
+table(d2019$anx_cur)
+table(d2019$anx)
+
+
+
+d2019$anx_cur <- ifelse(is.na(d2019$anx), NA,                       # Condition 1
+                        ifelse(d2019$anx == 1 & d2019$anx_cur == 1, "yes",  # Condition 2
+                               ifelse(d2019$anx == 1 & d2019$anx_cur == 2, "no",  # Condition 3
+                                      ifelse(d2019$anx == 2, "no", d2019$anx_cur))))  # Condition 4
+
+
+table(d2019$anx_cur)
+# no   yes 
+# 26286  2953 
+
+d2019 <- d2019 %>%
+  select(-anx)
+
+
+#2018
+
+sum(is.na(d2018$anx)) #103
+sum(is.na(d2018$anx_cur)) #27366
+
+sum(is.na(d2018$anx) & is.na(d2018$anx_cur))
+
+table(d2018$anx_cur)
+table(d2018$anx)
+
+
+
+d2018$anx_cur <- ifelse(is.na(d2018$anx), NA,                       # Condition 1
+                        ifelse(d2018$anx == 1 & d2018$anx_cur == 1, "yes",  # Condition 2
+                               ifelse(d2018$anx == 1 & d2018$anx_cur == 2, "no",  # Condition 3
+                                      ifelse(d2018$anx == 2, "no", d2018$anx_cur))))  # Condition 4
+
+
+table(d2018$anx_cur)
+# no   yes 
+# 27604  2737 
+
+d2018 <- d2018 %>%
+  select(-anx)
+
+
+#2017
+
+
+sum(is.na(d2017$anx)) #67
+sum(is.na(d2017$anx_cur)) #19587
+
+sum(is.na(d2017$anx) & is.na(d2017$anx_cur))
+
+table(d2017$anx_cur)
+table(d2017$anx)
+
+
+
+d2017$anx_cur <- ifelse(is.na(d2017$anx), NA,                       # Condition 1
+                        ifelse(d2017$anx == 1 & d2017$anx_cur == 1, "yes",  # Condition 2
+                               ifelse(d2017$anx == 1 & d2017$anx_cur == 2, "no",  # Condition 3
+                                      ifelse(d2017$anx == 2, "no", d2017$anx_cur))))  # Condition 4
+
+
+table(d2017$anx_cur)
+# no   yes 
+# 19713  1775 
+
+d2017 <- d2017 %>%
+  select(-anx)
+
+
+#2016
+
+sum(is.na(d2016$anx)) #173
+sum(is.na(d2016$anx_cur)) #45836
+
+sum(is.na(d2016$anx) & is.na(d2016$anx_cur))
+
+table(d2016$anx_cur)
+table(d2016$anx)
+
+
+
+d2016$anx_cur <- ifelse(is.na(d2016$anx), NA,                       # Condition 1
+                        ifelse(d2016$anx == 1 & d2016$anx_cur == 1, "yes",  # Condition 2
+                               ifelse(d2016$anx == 1 & d2016$anx_cur == 2, "no",  # Condition 3
+                                      ifelse(d2016$anx == 2, "no", d2016$anx_cur))))  # Condition 4
+
+
+table(d2016$anx_cur)
+# no   yes 
+# 46133  3776 
+
+d2016 <- d2016 %>%
+  select(-anx)
+
+
+
+
+# depression cleaning -----------------------------------------------------
+
+#2019
+
+sum(is.na(d2019$depr)) #79
+sum(is.na(d2019$depr_cur)) #27871
+
+sum(is.na(d2019$depr) & is.na(d2019$depr_cur))
+
+table(d2019$depr_cur)
+table(d2019$depr)
+
+
+
+d2019$depr_cur <- ifelse(is.na(d2019$depr), NA,                       # Condition 1
+                        ifelse(d2019$depr == 1 & d2019$depr_cur == 1, "yes",  # Condition 2
+                               ifelse(d2019$depr == 1 & d2019$depr_cur == 2, "no",  # Condition 3
+                                      ifelse(d2019$depr == 2, "no", d2019$depr_cur))))  # Condition 4
+
+
+table(d2019$depr_cur)
+# no   yes 
+# 28046  1259 
+
+d2019 <- d2019 %>%
+  select(-depr)
+
+
+
+#2018
+
+sum(is.na(d2018$depr)) #126
+sum(is.na(d2018$depr_cur)) #28989
+
+sum(is.na(d2018$depr) & is.na(d2018$depr_cur))
+
+table(d2018$depr_cur)
+table(d2018$depr)
+
+
+
+d2018$depr_cur <- ifelse(is.na(d2018$depr), NA,                       # Condition 1
+                         ifelse(d2018$depr == 1 & d2018$depr_cur == 1, "yes",  # Condition 2
+                                ifelse(d2018$depr == 1 & d2018$depr_cur == 2, "no",  # Condition 3
+                                       ifelse(d2018$depr == 2, "no", d2018$depr_cur))))  # Condition 4
+
+
+table(d2018$depr_cur)
+# no   yes 
+# 29170  1201 
+
+d2018 <- d2018 %>%
+  select(-depr)
+
+
+
+#2017
+
+sum(is.na(d2017$depr)) #58
+sum(is.na(d2017$depr_cur)) #20625
+
+sum(is.na(d2017$depr) & is.na(d2017$depr_cur))
+
+table(d2017$depr_cur)
+table(d2017$depr)
+
+
+
+d2017$depr_cur <- ifelse(is.na(d2017$depr), NA,                       # Condition 1
+                         ifelse(d2017$depr == 1 & d2017$depr_cur == 1, "yes",  # Condition 2
+                                ifelse(d2017$depr == 1 & d2017$depr_cur == 2, "no",  # Condition 3
+                                       ifelse(d2017$depr == 2, "no", d2017$depr_cur))))  # Condition 4
+
+
+table(d2017$depr_cur)
+# no   yes 
+# 20733  787 
+
+d2017 <- d2017 %>%
+  select(-depr)
+
+
+
+
+
+#2016
+
+sum(is.na(d2016$depr)) #149
+sum(is.na(d2016$depr_cur)) #48059
+
+sum(is.na(d2016$depr) & is.na(d2016$depr_cur))
+
+table(d2016$depr_cur)
+table(d2016$depr)
+
+
+
+d2016$depr_cur <- ifelse(is.na(d2016$depr), NA,                       # Condition 1
+                         ifelse(d2016$depr == 1 & d2016$depr_cur == 1, "yes",  # Condition 2
+                                ifelse(d2016$depr == 1 & d2016$depr_cur == 2, "no",  # Condition 3
+                                       ifelse(d2016$depr == 2, "no", d2016$depr_cur))))  # Condition 4
+
+
+table(d2016$depr_cur)
+# no   yes 
+# 48314  1676 
+
+d2016 <- d2016 %>%
+  select(-depr)
+
+
+
+# sex cleaning ------------------------------------------------------------
+
+
+# recode sex
+#2019
+
+d2019 <- d2019 %>%
+  mutate(sex = case_when(sex == 1 ~ "male",
+                         sex == 2 ~ "female"))
+ 
+table(d2019$sex)
+str(d2019$sex) #make sure its factor and not character
+d2019$sex <- as.factor(d2019$sex)
+
+
+
+
+#2018
+
+d2018 <- d2018 %>%
+  mutate(sex = case_when(sex == 1 ~ "male",
+                         sex == 2 ~ "female"))
+
+table(d2018$sex)
+str(d2018$sex) #make sure its factor and not character
+d2018$sex <- as.factor(d2018$sex)
+
+
+
+#2017
+
+d2017 <- d2017 %>%
+  mutate(sex = case_when(sex == 1 ~ "male",
+                         sex == 2 ~ "female"))
+
+table(d2017$sex)
+str(d2017$sex) #make sure its factor and not character
+d2017$sex <- as.factor(d2017$sex)
+
+
+
+
+#2016
+
+d2016 <- d2016 %>%
+  mutate(sex = case_when(sex == 1 ~ "male",
+                         sex == 2 ~ "female"))
+
+table(d2016$sex)
+str(d2016$sex) #make sure its factor and not character
+d2016$sex <- as.factor(d2016$sex)
+
+
+
+
+
+# race cleaning -----------------------------------------------------------
+
+
+
+
+#2019
+
+# recode race
+table(d2019$race)
+
+d2019 <- d2019 %>%
+  mutate(race = case_when(race == 1 ~ "white",
+                         race == 2 ~ "black",
+                         race == 3 ~ "native",
+                         race == 4 ~ "asian",
+                         race == 5 ~ "pi",
+                         race == 6 ~ "other",
+                         race == 7 ~ "multi"))
+
+table(d2019$race)
+str(d2019$race) #make sure its factor and not character
+d2019$race <- as.factor(d2019$race)
+
+
+
+#2018
+
+# recode race
+table(d2018$race)
+
+d2018 <- d2018 %>%
+  mutate(race = case_when(race == 1 ~ "white",
+                          race == 2 ~ "black",
+                          race == 3 ~ "native",
+                          race == 4 ~ "asian",
+                          race == 5 ~ "pi",
+                          race == 6 ~ "other",
+                          race == 7 ~ "multi"))
+
+table(d2018$race)
+str(d2018$race) #make sure its factor and not character
+d2018$race <- as.factor(d2018$race)
+
+
+
+
+#2017
+
+# recode race
+table(d2017$race)
+
+d2017 <- d2017 %>%
+  mutate(race = case_when(race == 1 ~ "white",
+                          race == 2 ~ "black",
+                          race == 3 ~ "native",
+                          race == 4 ~ "asian",
+                          race == 5 ~ "pi",
+                          race == 6 ~ "other",
+                          race == 7 ~ "multi"))
+
+table(d2017$race)
+str(d2017$race) #make sure its factor and not character
+d2017$race <- as.factor(d2017$race)
+
+
+
+
+#2016
+
+# recode race
+table(d2016$race)
+
+d2016 <- d2016 %>%
+  mutate(race = case_when(race == 1 ~ "white",
+                          race == 2 ~ "black",
+                          race == 3 ~ "native",
+                          race == 4 ~ "asian",
+                          race == 5 ~ "pi",
+                          race == 6 ~ "other",
+                          race == 7 ~ "multi"))
+
+table(d2016$race)
+str(d2016$race) #make sure its factor and not character
+d2016$race <- as.factor(d2016$race)
+
+
+# ace cleaning ------------------------------------------------------------
+
+
+
+# aces
+#if aces = continuous (9-20)
+#Looking at slack yes cont
+
+d2019 %>%
+  select(ace1:ace10) %>%
+  psych::describe()
+
+d2019 <- d2019 %>%
+  mutate(ace1 = case_when(ace1 == 1 ~ 2,
+                          ace1 == 2 ~ 1,
+                          ace1 == 3 ~ 1,
+                          ace1 == 4 ~ 1))
+
+d2019$ace1 <- d2019$ace1 - 1
+d2019$ace3 <- d2019$ace3 - 1
+d2019$ace4 <- d2019$ace4 - 1
+d2019$ace5 <- d2019$ace5 - 1
+d2019$ace6 <- d2019$ace6 - 1
+d2019$ace7 <- d2019$ace7 - 1
+d2019$ace8 <- d2019$ace8 - 1
+d2019$ace9 <- d2019$ace9 - 1
+d2019$ace10 <- d2019$ace10 - 1
+
+d2019 <- d2019 %>%
+  mutate(ace_total = ace1+ace3+ace4+ace5+ace6+ace7+ace8+ace9+ace10)
+
+# ace1 is 1-4 while the others are 1-2. need to recode ace1 to 1-2
+
+describe(d2019$ace_total)
+
+
+
+
+#2018
+# aces
+#if aces = continuous (9-20)
+#Looking at slack yes cont
+
+d2018 %>%
+  select(ace1:ace10) %>%
+  psych::describe()
+
+d2018 <- d2018 %>%
+  mutate(ace1 = case_when(ace1 == 1 ~ 2,
+                          ace1 == 2 ~ 1,
+                          ace1 == 3 ~ 1,
+                          ace1 == 4 ~ 1))
+
+d2018$ace1 <- d2018$ace1 - 1
+d2018$ace3 <- d2018$ace3 - 1
+d2018$ace4 <- d2018$ace4 - 1
+d2018$ace5 <- d2018$ace5 - 1
+d2018$ace6 <- d2018$ace6 - 1
+d2018$ace7 <- d2018$ace7 - 1
+d2018$ace8 <- d2018$ace8 - 1
+d2018$ace9 <- d2018$ace9 - 1
+d2018$ace10 <- d2018$ace10 - 1
+
+d2018 <- d2018 %>%
+  mutate(ace_total = ace1+ace3+ace4+ace5+ace6+ace7+ace8+ace9+ace10)
+
+# ace1 is 1-4 while the others are 1-2. need to recode ace1 to 1-2
+
+describe(d2018$ace_total)
+
+
+#2017
+# aces
+#if aces = continuous (9-20)
+#Looking at slack yes cont
+
+d2017 %>%
+  select(ace1:ace10) %>%
+  psych::describe()
+
+d2017 <- d2017 %>%
+  mutate(ace1 = case_when(ace1 == 1 ~ 2,
+                          ace1 == 2 ~ 1,
+                          ace1 == 3 ~ 1,
+                          ace1 == 4 ~ 1))
+
+d2017$ace1 <- d2017$ace1 - 1
+d2017$ace3 <- d2017$ace3 - 1
+d2017$ace4 <- d2017$ace4 - 1
+d2017$ace5 <- d2017$ace5 - 1
+d2017$ace6 <- d2017$ace6 - 1
+d2017$ace7 <- d2017$ace7 - 1
+d2017$ace8 <- d2017$ace8 - 1
+d2017$ace9 <- d2017$ace9 - 1
+d2017$ace10 <- d2017$ace10 - 1
+
+d2017 <- d2017 %>%
+  mutate(ace_total = ace1+ace3+ace4+ace5+ace6+ace7+ace8+ace9+ace10)
+
+# ace1 is 1-4 while the others are 1-2. need to recode ace1 to 1-2
+
+describe(d2017$ace_total)
+
+
+
+
+#2016
+# aces
+#if aces = continuous (9-20)
+#Looking at slack yes cont
+
+d2016 %>%
+  select(ace1:ace10) %>%
+  psych::describe()
+
+d2016 <- d2016 %>%
+  mutate(ace1 = case_when(ace1 == 1 ~ 2,
+                          ace1 == 2 ~ 1,
+                          ace1 == 3 ~ 1,
+                          ace1 == 4 ~ 1))
+
+d2016$ace1 <- d2016$ace1 - 1
+d2016$ace3 <- d2016$ace3 - 1
+d2016$ace4 <- d2016$ace4 - 1
+d2016$ace5 <- d2016$ace5 - 1
+d2016$ace6 <- d2016$ace6 - 1
+d2016$ace7 <- d2016$ace7 - 1
+d2016$ace8 <- d2016$ace8 - 1
+d2016$ace9 <- d2016$ace9 - 1
+d2016$ace10 <- d2016$ace10 - 1
+
+d2016 <- d2016 %>%
+  mutate(ace_total = ace1+ace3+ace4+ace5+ace6+ace7+ace8+ace9+ace10)
+
+# ace1 is 1-4 while the others are 1-2. need to recode ace1 to 1-2
+
+describe(d2016$ace_total)
+
+
+
+
+# combining data ----------------------------------------------------------
+
+
+#combine data
+total <- rbind(d2016, d2017, d2018, d2019)
+
+
+#this will save as an excel so I can load it in to do analysis
+write_csv(total, "/Users/bellamaeswafford/Desktop/total.csv")
+
+#will save as an r file, not excel - more compressed
+save(total, file = "/Users/bellamaeswafford/Desktop/total.RData")
+
+
